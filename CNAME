@@ -1,0 +1,12 @@
+# ====== Custom Domain Configuration ======
+# When you're ready for a custom domain (e.g. ramkingloballink.com):
+# 1. Purchase the domain from a registrar (e.g. Namecheap, GoDaddy, ethiotelecom.et domains)
+# 2. At your DNS provider, create records:
+#      APEX (@)    ->  A   record -> 185.199.108.153
+#                               also: 185.199.109.153
+#                               also: 185.199.110.153
+#                               also: 185.199.111.153
+#      www         ->  CNAME record -> Riter-Rob.github.io.
+# 3. Uncomment the line below and replace with your domain.
+#
+# ramkingloballink.com

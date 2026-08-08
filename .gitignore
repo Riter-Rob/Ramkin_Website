@@ -16,6 +16,8 @@ npm-debug.log*
 
 # Dependency folders (this is a pure static site, so none needed)
 node_modules/
+package-lock.json
+package.json
 
 # Env
 .env
@@ -24,3 +26,7 @@ node_modules/
 # Temp
 *.tmp
 *.bak
+
+# Lint reports
+stylelint-report.txt
+.lighthouseci/
