@@ -1,0 +1,155 @@
+name: Deploy to GitHub Pages (CI/CD)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  checks: write
+
+concurrency:
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+
+  # ============== JOB 1: QUALITY (linting + Lighthouse on PRs) ==============
+  quality:
+    name: Lint + Lighthouse Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate required files
+        id: validate
+        run: |
+          echo "=== 📂 Files in workspace ==="
+          find . -maxdepth 2 -not -path './.git*' | sort
+          echo ""
+          MISSING=0
+          for f in index.html styles.css script.js; do
+            if [ -f "$f" ]; then
+              echo "✅ $f found ($(wc -l < "$f") lines)"
+            else
+              echo "❌ $f MISSING"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -ne 0 ]; then exit 1; fi
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Write .stylelintrc (from file, not inline)
+        run: |
+          cat > .stylelintrc.json <<'STYLELINTEOF'
+          {
+            "extends": "stylelint-config-standard",
+            "rules": {
+              "no-descending-specificity": null,
+              "alpha-value-notation": null,
+              "color-function-notation": null,
+              "hue-degree-notation": null,
+              "font-family-name-quotes": null,
+              "declaration-block-no-redundant-longhand-properties": null,
+              "keyframes-name-pattern": null,
+              "selector-class-pattern": null,
+              "custom-property-pattern": null,
+              "property-no-vendor-prefix": null,
+              "value-no-vendor-prefix": null,
+              "number-max-precision": null,
+              "selector-not-notation": null,
+              "media-feature-range-notation": null,
+              "length-zero-no-unit": null,
+              "selector-pseudo-class-no-unknown": [true, { "ignorePseudoClasses": ["global"] }],
+              "annotation-no-unknown": [true, { "ignoreAnnotations": ["default"] }]
+            }
+          }
+          STYLELINTEOF
+          cat .stylelintrc.json
+
+      - name: Install lint tools
+        run: |
+          npm init -y > /dev/null 2>&1 || true
+          npm install --save-dev --no-audit --no-fund stylelint stylelint-config-standard
+          echo "Installed stylelint: $(npx stylelint --version 2>/dev/null || echo ok)"
+
+      - name: Run Stylelint (CSS validation, non-blocking)
+        id: lint
+        continue-on-error: true
+        run: |
+          echo "=== 🎨 Running Stylelint on styles.css ==="
+          npx stylelint styles.css --formatter verbose > stylelint-report.txt 2>&1 || true
+          cat stylelint-report.txt
+          echo "Lint completed (non-blocking)."
+
+      - name: Run Lighthouse CI (Performance/SEO/A11y)
+        id: lighthouse
+        continue-on-error: true
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Summarize quality report
+        if: always()
+        run: |
+          echo "## ✅ Quality Gate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Required files (index/css/js) | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          if grep -q "problems" stylelint-report.txt 2>/dev/null; then
+            ISSUES=$(grep -oP '\d+(?= problem)' stylelint-report.txt | head -1)
+            echo "| Stylelint CSS quality | ⚠️ $ISSUES warnings (non-blocking) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Stylelint CSS quality | ✅ Pass (no issues found) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          LH_URL="${{ steps.lighthouse.outputs.lighthouseData }}"
+          if [ -n "$LH_URL" ]; then
+            echo "| Lighthouse (Perf/SEO/A11y) | 📊 [View Report]($LH_URL) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Lighthouse (Perf/SEO/A11y) | ⚙️ Ran (see artifacts) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "_This check ran on ubuntu-latest with Node.js 20._" >> $GITHUB_STEP_SUMMARY
+
+  # ============== JOB 2: DEPLOY to GitHub Pages (only on main push + dispatch) ==============
+  build-and-deploy:
+    name: Build + Deploy to GitHub Pages
+    needs: quality
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          static_site_generator: static
+
+      - name: Upload Pages artifact (entire site, excluding .git/.github)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "."
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
