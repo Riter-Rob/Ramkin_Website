@@ -8,13 +8,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
   checks: write
 
 concurrency:
-  group: "pages-${{ github.ref }}"
+  group: "pages-deploy-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -125,31 +125,30 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "_This check ran on ubuntu-latest with Node.js 20._" >> $GITHUB_STEP_SUMMARY
 
-  # ============== JOB 2: DEPLOY to GitHub Pages (only on main push + dispatch) ==============
+  # ============== JOB 2: DEPLOY — force-push root content to gh-pages branch ==============
   build-and-deploy:
-    name: Build + Deploy to GitHub Pages
+    name: Auto-Deploy → gh-pages branch
     needs: quality
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (full history)
         uses: actions/checkout@v4
-
-      - name: Setup GitHub Pages
-        id: pages
-        uses: actions/configure-pages@v5
         with:
-          static_site_generator: static
+          fetch-depth: 0
 
-      - name: Upload Pages artifact (entire site, excluding .git/.github)
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy site root to gh-pages (orphan force-push)
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: "."
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
+          force_orphan: true
+          keep_files: false
+          user_name: "github-actions[bot]"
+          user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_message: |
+            deploy: ${{ github.event.head_commit.message }} (auto gh-pages)
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+            Triggered by commit ${{ github.sha }} on ${{ github.ref_name }}
+            Source repo: ${{ github.repository }} via Actions Run #${{ github.run_number }}

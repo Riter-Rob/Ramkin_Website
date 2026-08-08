@@ -19,8 +19,8 @@ Connecting talented Ethiopian professionals with premium employment opportunitie
 | **Markup** | HTML5 — semantic & accessible (`<br>(index.html`)
 | **Styling** | CSS3 custom design system (CSS variables, Grid, Flexbox) |
 | **Interactivity** | Vanilla ES6+ JavaScript (no frameworks → zero bloat) |
-| **Hosting** | [GitHub Pages](https://pages.github.com/) |
-| **CI/CD** | GitHub Actions — on every push to `main` |
+| **Hosting** | [GitHub Pages](https://pages.github.com/) — deployed from `gh-pages` branch |
+| **CI/CD** | GitHub Actions — **quality audit** then **auto force-orphan push to gh-pages** on every push to `main` (uses `peaceiris/actions-gh-pages@v4`)
 | **Fonts** | Google Fonts (Playfair Display + Inter) |
 | **Icons** | Font Awesome 6.5.1 CDN |
 | **Images** | AI-generated professional photography (SDXL via Trae TTI API) |
@@ -149,19 +149,31 @@ git push origin main
 
 ---
 
-## 🌐 Enabling GitHub Pages (one-time step ⚠️ REQUIRED ⚠️)
+## 🌐 Enabling GitHub Pages (one-time step ⚠️ REQUIRED ⚠️ — do this NOW)
 
-The **deploy job will fail until you do this once**:
+The **deploy job pushes content to the `gh-pages` branch**, so GitHub Pages just needs to be told to serve from that branch:
 
 1. Go to **[Settings → Pages](https://github.com/Riter-Rob/Ramkin_Website/settings/pages)**
-2. Under **Build and deployment → Source**, select **`GitHub Actions`** (not "Deploy from branch")
-3. Wait 30 seconds. Your site will then be available at:
+2. Under **Build and deployment → Source**, select **`Deploy from a branch`** (NOT "GitHub Actions")
+3. Under the new **Branch** section that appears:
+   - Dropdown #1: choose **`gh-pages`**
+   - Dropdown #2: choose **`/ (root)`**
+   - Click **Save**
+4. Wait ~30 seconds. Your site goes live at:
    > **https://Riter-Rob.github.io/Ramkin_Website/**
 
-(Optional — add a **custom domain**:
-1. Buy domain → create DNS: `A` records pointing to GitHub Pages IPs + `CNAME` www → `Riter-Rob.github.io.`
-2. Edit the `CNAME` file to include your actual domain (e.g. `ramkingloballink.com`)
-3. Paste the domain in Pages settings → Custom domain; **Enforce HTTPS** after cert provisions
+**Optional — add a custom domain** (e.g. `ramkingloballink.com`):
+1. Buy a domain → create these DNS records with your registrar/dns host:
+   ```
+   Type   Name   Value
+   A      @      185.199.108.153
+   A      @      185.199.109.153
+   A      @      185.199.110.153
+   A      @      185.199.111.153
+   CNAME  www    Riter-Rob.github.io.
+   ```
+2. In the **`CNAME`** file in this repo, uncomment the last line and set it to your real apex domain (e.g. `ramkingloballink.com`)
+3. Back on the Pages settings page: paste the same domain into **Custom domain** → Save → check **Enforce HTTPS** once the TLS certificate provisions (can take minutes to a few hours)
 
 ---
 
