@@ -1,0 +1,26 @@
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependency folders (this is a pure static site, so none needed)
+node_modules/
+
+# Env
+.env
+.env.local
+
+# Temp
+*.tmp
+*.bak
